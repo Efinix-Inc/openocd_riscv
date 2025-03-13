@@ -1043,7 +1043,8 @@ static int jtag_reset_callback(enum jtag_event event, void *priv)
 
 		/* current instruction is either BYPASS or IDCODE */
 		buf_set_ones(tap->cur_instr, tap->ir_length);
-		tap->bypass = 1;
+		LOG_DEBUG("tap->bypass set to false at jtag_reset_callback");
+		tap->bypass = 0;
 	}
 
 	return ERROR_OK;
