@@ -442,18 +442,26 @@ void jtag_add_dr_scan_check(struct jtag_tap *active,
 }
 
 
-void jtag_add_dr_scan(struct jtag_tap *active,
+void jtag_add_dr_scan_plainscan(struct jtag_tap *active,
 	int in_num_fields,
 	const struct scan_field *in_fields,
-	tap_state_t state)
+	tap_state_t state, bool is_plain)
 {
 	assert(state != TAP_RESET);
 
 	jtag_prelude(state);
 
 	int retval;
-	retval = interface_jtag_add_dr_scan(active, in_num_fields, in_fields, state);
+	retval = interface_jtag_add_dr_scan(active, in_num_fields, in_fields, state, is_plain);
 	jtag_set_error(retval);
+}
+
+void jtag_add_dr_scan(struct jtag_tap *active,
+	int in_num_fields,
+	const struct scan_field *in_fields,
+	tap_state_t state)
+{
+	jtag_add_dr_scan_plainscan(active, in_num_fields, in_fields, state, false);
 }
 
 void jtag_add_plain_dr_scan(int num_bits, const uint8_t *out_bits, uint8_t *in_bits,

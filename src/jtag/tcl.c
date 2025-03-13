@@ -83,7 +83,7 @@ static bool scan_is_safe(tap_state_t state)
 	}
 }
 
-static int jim_command_drscan(Jim_Interp *interp, int argc, Jim_Obj * const *args)
+static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args, bool is_plain)
 {
 	int retval;
 	struct scan_field *fields;
@@ -188,7 +188,7 @@ static int jim_command_drscan(Jim_Interp *interp, int argc, Jim_Obj * const *arg
 		field_count++;
 	}
 
-	jtag_add_dr_scan(tap, num_fields, fields, endstate);
+	jtag_add_dr_scan_plainscan(tap, num_fields, fields, endstate, is_plain);
 
 	retval = jtag_execute_queue();
 	if (retval != ERROR_OK) {
@@ -223,6 +223,15 @@ static int jim_command_drscan(Jim_Interp *interp, int argc, Jim_Obj * const *arg
 	return JIM_OK;
 }
 
+static int jim_command_drscan(Jim_Interp *interp, int argc, Jim_Obj * const *args)
+{
+	return jim_command_scan(interp, argc, args, false);
+}
+
+static int jim_command_drplainscan(Jim_Interp *interp, int argc, Jim_Obj * const *args)
+{
+	return jim_command_scan(interp, argc, args, true);
+}
 
 static int jim_command_pathmove(Jim_Interp *interp, int argc, Jim_Obj * const *args)
 {
@@ -285,6 +294,14 @@ static const struct command_registration jtag_command_handlers_to_move[] = {
 		.jim_handler = jim_command_drscan,
 		.help = "Execute Data Register (DR) scan for one TAP.  "
 			"Other TAPs must be in BYPASS mode.",
+		.usage = "tap_name [num_bits value]* ['-endstate' state_name]",
+	},
+	{
+		.name = "drplainscan",
+		.mode = COMMAND_EXEC,
+		.jim_handler = jim_command_drplainscan,
+		.help = "Execute plain Data Register (DR) scan for one TAP.  "
+			"Other TAPs must be in BYPASS mode. Unlike drscan, dummy bits for bypassed Taps are not added.",
 		.usage = "tap_name [num_bits value]* ['-endstate' state_name]",
 	},
 	{

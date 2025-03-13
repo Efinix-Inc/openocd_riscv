@@ -116,15 +116,17 @@ int interface_jtag_add_ir_scan(struct jtag_tap *active,
  *
  */
 int interface_jtag_add_dr_scan(struct jtag_tap *active, int in_num_fields,
-		const struct scan_field *in_fields, tap_state_t state)
+		const struct scan_field *in_fields, tap_state_t state, bool is_plain)
 {
 	/* count devices in bypass */
 
 	size_t bypass_devices = 0;
 
-	for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL); tap; tap = jtag_tap_next_enabled(tap)) {
-		if (tap->bypass)
-			bypass_devices++;
+	if (!is_plain) {
+		for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL); tap; tap = jtag_tap_next_enabled(tap)) {
+			if (tap->bypass)
+				bypass_devices++;
+		}
 	}
 
 	struct jtag_command *cmd = cmd_queue_alloc(sizeof(struct jtag_command));
@@ -165,7 +167,7 @@ int interface_jtag_add_dr_scan(struct jtag_tap *active, int in_num_fields,
 		}
 
 		/* if a TAP is bypassed, generated a dummy bit*/
-		else {
+		else if (!is_plain) {
 			field->num_bits = 1;
 			field->out_value = NULL;
 			field->in_value = NULL;
