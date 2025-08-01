@@ -83,7 +83,7 @@ static bool scan_is_safe(tap_state_t state)
 	}
 }
 
-static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args, bool is_plain)
+static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args, bool is_plain, bool is_drscan)
 {
 	int retval;
 	struct scan_field *fields;
@@ -188,7 +188,7 @@ static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args,
 		field_count++;
 	}
 
-	jtag_add_dr_scan_plainscan(tap, num_fields, fields, endstate, is_plain);
+	jtag_add_dr_scan_plainscan(tap, num_fields, fields, endstate, is_plain, is_drscan);
 
 	retval = jtag_execute_queue();
 	if (retval != ERROR_OK) {
@@ -225,12 +225,17 @@ static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args,
 
 static int jim_command_drscan(Jim_Interp *interp, int argc, Jim_Obj * const *args)
 {
-	return jim_command_scan(interp, argc, args, false);
+	return jim_command_scan(interp, argc, args, false, true);
 }
 
 static int jim_command_drplainscan(Jim_Interp *interp, int argc, Jim_Obj * const *args)
 {
-	return jim_command_scan(interp, argc, args, true);
+	return jim_command_scan(interp, argc, args, true, true);
+}
+
+static int jim_command_irplainscan(Jim_Interp *interp, int argc, Jim_Obj * const *args)
+{
+	return jim_command_scan(interp, argc, args, true, false);
 }
 
 static int jim_command_pathmove(Jim_Interp *interp, int argc, Jim_Obj * const *args)
@@ -300,7 +305,7 @@ static const struct command_registration jtag_command_handlers_to_move[] = {
 		.name = "drplainscan",
 		.mode = COMMAND_EXEC,
 		.jim_handler = jim_command_drplainscan,
-		.help = "Execute plain Data Register (DR) scan for one TAP.  "
+		.help = "Execute plain Data Register (DR) scan.  "
 			"Other TAPs must be in BYPASS mode. Unlike drscan, dummy bits for bypassed Taps are not added.",
 		.usage = "tap_name [num_bits value]* ['-endstate' state_name]",
 	},
@@ -318,6 +323,14 @@ static const struct command_registration jtag_command_handlers_to_move[] = {
 		.usage = "start_state state1 [state2 [state3 ...]]",
 		.help = "Move JTAG state machine from current state "
 			"(start_state) to state1, then state2, state3, etc.",
+	},
+	{
+		.name = "irplainscan",
+		.mode = COMMAND_EXEC,
+		.jim_handler = jim_command_irplainscan,
+		.help = "Execute plain Instruction Register (IR) scan.  "
+			"Unlike the irscan command, this command supports multiple value just like drscan and drplainscan. It will return the data from TDO",
+		.usage = "tap_name [num_bits value]* ['-endstate' state_name]",
 	},
 	COMMAND_REGISTRATION_DONE
 };

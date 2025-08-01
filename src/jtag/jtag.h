@@ -323,7 +323,7 @@ void jtag_add_plain_ir_scan(int num_bits, const uint8_t *out_bits, uint8_t *in_b
  * No dummy fields will be added or removed if is_plain is set to true
  */
 void jtag_add_dr_scan_plainscan(struct jtag_tap *tap, int num_fields,
-		const struct scan_field *fields, tap_state_t endstate, bool is_plain);
+		const struct scan_field *fields, tap_state_t endstate, bool is_plain, bool is_drscan);
 /**
  * Generate a DR SCAN using the fields passed to the function.
  * For connected TAPs, the function checks in_fields and uses fields
