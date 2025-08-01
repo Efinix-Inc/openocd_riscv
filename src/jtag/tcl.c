@@ -90,7 +90,7 @@ static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args,
 	int num_fields;
 	int field_count = 0;
 	int i, e;
-	struct jtag_tap *tap;
+	struct jtag_tap *tap = NULL;
 	tap_state_t endstate;
 
 	/* args[1] = device
@@ -162,9 +162,11 @@ static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args,
 
 	assert(e == JIM_OK);
 
-	tap = jtag_tap_by_jim_obj(interp, args[1]);
-	if (!tap)
-		return JIM_ERR;
+	if (!is_plain) {
+		tap = jtag_tap_by_jim_obj(interp, args[1]);
+		if (!tap)
+			return JIM_ERR;
+	}
 
 	num_fields = (argc-2)/2;
 	if (num_fields <= 0) {
@@ -1231,6 +1233,23 @@ COMMAND_HANDLER(handle_verify_jtag_command)
 	return ERROR_OK;
 }
 
+COMMAND_HANDLER(handle_examine_chain_command)
+{
+	if (CMD_ARGC > 1)
+		return ERROR_COMMAND_SYNTAX_ERROR;
+
+	if (CMD_ARGC == 1) {
+		bool enable;
+		COMMAND_PARSE_ENABLE(CMD_ARGV[0], enable);
+		jtag_set_examine_chain(enable);
+	}
+
+	const char *status = jtag_will_examine_chain() ? "enabled" : "disabled";
+	command_print(CMD, "examine jtag chain is %s", status);
+
+	return ERROR_OK;
+}
+
 COMMAND_HANDLER(handle_tms_sequence_command)
 {
 	if (CMD_ARGC > 1)
@@ -1372,6 +1391,14 @@ static const struct command_registration jtag_command_handlers[] = {
 		.mode = COMMAND_ANY,
 		.help = "Display or assign flag controlling whether to "
 			"verify values captured during IR and DR scans.",
+		.usage = "['enable'|'disable']",
+	},
+	{
+		.name = "examine_chain",
+		.handler = handle_examine_chain_command,
+		.mode = COMMAND_ANY,
+		.help = "Display or assign flag controlling whether to "
+			"examine JTAG chain during initialization",
 		.usage = "['enable'|'disable']",
 	},
 	{

@@ -147,32 +147,47 @@ int interface_jtag_add_dr_scan(struct jtag_tap *active, int in_num_fields,
 
 	/* loop over all enabled TAPs */
 
-	for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL); tap; tap = jtag_tap_next_enabled(tap)) {
-		/* if TAP is not bypassed insert matching input fields */
-
-		if (!tap->bypass) {
-			assert(active == tap);
+	if (is_plain) {
 #ifndef NDEBUG
-			/* remember initial position for assert() */
-			struct scan_field *start_field = field;
+		/* remember initial position for assert() */
+		struct scan_field *start_field = field;
 #endif /* NDEBUG */
 
-			for (int j = 0; j < in_num_fields; j++) {
-				jtag_scan_field_clone(field, in_fields + j);
+		for (int j = 0; j < in_num_fields; j++) {
+			jtag_scan_field_clone(field, in_fields + j);
+
+			field++;
+		}
+
+		assert(field > start_field);	/* must have at least one input field per not bypassed TAP */
+	} else {
+		for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL); tap; tap = jtag_tap_next_enabled(tap)) {
+			/* if TAP is not bypassed insert matching input fields */
+
+			if (!tap->bypass) {
+				assert(active == tap);
+#ifndef NDEBUG
+				/* remember initial position for assert() */
+				struct scan_field *start_field = field;
+#endif /* NDEBUG */
+
+				for (int j = 0; j < in_num_fields; j++) {
+					jtag_scan_field_clone(field, in_fields + j);
+
+					field++;
+				}
+
+				assert(field > start_field);	/* must have at least one input field per not bypassed TAP */
+			}
+
+			/* if a TAP is bypassed, generated a dummy bit*/
+			else if (!is_plain) {
+				field->num_bits = 1;
+				field->out_value = NULL;
+				field->in_value = NULL;
 
 				field++;
 			}
-
-			assert(field > start_field);	/* must have at least one input field per not bypassed TAP */
-		}
-
-		/* if a TAP is bypassed, generated a dummy bit*/
-		else if (!is_plain) {
-			field->num_bits = 1;
-			field->out_value = NULL;
-			field->in_value = NULL;
-
-			field++;
 		}
 	}
 
