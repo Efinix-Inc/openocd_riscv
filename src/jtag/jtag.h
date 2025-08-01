@@ -253,6 +253,10 @@ int jtag_get_trst(void);
 /** @returns The current state of SRST. */
 int jtag_get_srst(void);
 
+/** @returns True if JTAG scan examination will be performed. */
+bool jtag_will_examine_chain(void);
+/** Enable or disable JTAG scan examination checking. */
+void jtag_set_examine_chain(bool enable);
 /** Enable or disable data scan verification checking. */
 void jtag_set_verify(bool enable);
 /** @returns True if data scan verification will be performed. */
