@@ -253,6 +253,10 @@ int jtag_get_trst(void);
 /** @returns The current state of SRST. */
 int jtag_get_srst(void);
 
+/** @returns True if JTAG scan examination will be performed. */
+bool jtag_will_examine_chain(void);
+/** Enable or disable JTAG scan examination checking. */
+void jtag_set_examine_chain(bool enable);
 /** Enable or disable data scan verification checking. */
 void jtag_set_verify(bool enable);
 /** @returns True if data scan verification will be performed. */
@@ -323,7 +327,7 @@ void jtag_add_plain_ir_scan(int num_bits, const uint8_t *out_bits, uint8_t *in_b
  * No dummy fields will be added or removed if is_plain is set to true
  */
 void jtag_add_dr_scan_plainscan(struct jtag_tap *tap, int num_fields,
-		const struct scan_field *fields, tap_state_t endstate, bool is_plain);
+		const struct scan_field *fields, tap_state_t endstate, bool is_plain, bool is_drscan);
 /**
  * Generate a DR SCAN using the fields passed to the function.
  * For connected TAPs, the function checks in_fields and uses fields

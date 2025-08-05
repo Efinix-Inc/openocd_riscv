@@ -100,6 +100,7 @@ tap_state_t cmd_queue_cur_state = TAP_RESET;
 
 static bool jtag_verify_capture_ir = true;
 static int jtag_verify = 1;
+static int jtag_examine = 1;
 
 /* how long the OpenOCD should wait before attempting JTAG communication after reset lines
  *deasserted (in ms) */
@@ -445,14 +446,14 @@ void jtag_add_dr_scan_check(struct jtag_tap *active,
 void jtag_add_dr_scan_plainscan(struct jtag_tap *active,
 	int in_num_fields,
 	const struct scan_field *in_fields,
-	tap_state_t state, bool is_plain)
+	tap_state_t state, bool is_plain, bool is_drscan)
 {
 	assert(state != TAP_RESET);
 
 	jtag_prelude(state);
 
 	int retval;
-	retval = interface_jtag_add_dr_scan(active, in_num_fields, in_fields, state, is_plain);
+	retval = interface_jtag_add_dr_scan(active, in_num_fields, in_fields, state, is_plain, is_drscan);
 	jtag_set_error(retval);
 }
 
@@ -461,7 +462,7 @@ void jtag_add_dr_scan(struct jtag_tap *active,
 	const struct scan_field *in_fields,
 	tap_state_t state)
 {
-	jtag_add_dr_scan_plainscan(active, in_num_fields, in_fields, state, false);
+	jtag_add_dr_scan_plainscan(active, in_num_fields, in_fields, state, false, true);
 }
 
 void jtag_add_plain_dr_scan(int num_bits, const uint8_t *out_bits, uint8_t *in_bits,
@@ -1539,24 +1540,26 @@ int jtag_init_inner(struct command_context *cmd_ctx)
 	 * prevent communication ... hardware issues like TDO stuck, or
 	 * configuring the wrong number of (enabled) TAPs.
 	 */
-	retval = jtag_examine_chain();
-	switch (retval) {
-		case ERROR_OK:
-			/* complete success */
-			break;
-		default:
-			/* For backward compatibility reasons, try coping with
-			 * configuration errors involving only ID mismatches.
-			 * We might be able to talk to the devices.
-			 *
-			 * Also the device might be powered down during startup.
-			 *
-			 * After OpenOCD starts, we can try to power on the device
-			 * and run a reset.
-			 */
-			LOG_ERROR("Trying to use configured scan chain anyway...");
-			issue_setup = false;
-			break;
+	if (jtag_examine) {
+		retval = jtag_examine_chain();
+		switch (retval) {
+			case ERROR_OK:
+				/* complete success */
+				break;
+			default:
+				/* For backward compatibility reasons, try coping with
+				 * configuration errors involving only ID mismatches.
+				 * We might be able to talk to the devices.
+				 *
+				 * Also the device might be powered down during startup.
+				 *
+				 * After OpenOCD starts, we can try to power on the device
+				 * and run a reset.
+				 */
+				LOG_ERROR("Trying to use configured scan chain anyway...");
+				issue_setup = false;
+				break;
+		}
 	}
 
 	/* Now look at IR values.  Problems here will prevent real
@@ -1688,6 +1691,16 @@ int jtag_init(struct command_context *cmd_ctx)
 		return ERROR_FAIL;
 
 	return ERROR_OK;
+}
+
+void jtag_set_examine_chain(bool enable)
+{
+	jtag_examine = enable;
+}
+
+bool jtag_will_examine_chain(void)
+{
+	return jtag_examine;
 }
 
 void jtag_set_verify(bool enable)

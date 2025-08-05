@@ -83,14 +83,14 @@ static bool scan_is_safe(tap_state_t state)
 	}
 }
 
-static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args, bool is_plain)
+static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args, bool is_plain, bool is_drscan)
 {
 	int retval;
 	struct scan_field *fields;
 	int num_fields;
 	int field_count = 0;
 	int i, e;
-	struct jtag_tap *tap;
+	struct jtag_tap *tap = NULL;
 	tap_state_t endstate;
 
 	/* args[1] = device
@@ -162,9 +162,11 @@ static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args,
 
 	assert(e == JIM_OK);
 
-	tap = jtag_tap_by_jim_obj(interp, args[1]);
-	if (!tap)
-		return JIM_ERR;
+	if (!is_plain) {
+		tap = jtag_tap_by_jim_obj(interp, args[1]);
+		if (!tap)
+			return JIM_ERR;
+	}
 
 	num_fields = (argc-2)/2;
 	if (num_fields <= 0) {
@@ -188,7 +190,7 @@ static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args,
 		field_count++;
 	}
 
-	jtag_add_dr_scan_plainscan(tap, num_fields, fields, endstate, is_plain);
+	jtag_add_dr_scan_plainscan(tap, num_fields, fields, endstate, is_plain, is_drscan);
 
 	retval = jtag_execute_queue();
 	if (retval != ERROR_OK) {
@@ -225,12 +227,17 @@ static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args,
 
 static int jim_command_drscan(Jim_Interp *interp, int argc, Jim_Obj * const *args)
 {
-	return jim_command_scan(interp, argc, args, false);
+	return jim_command_scan(interp, argc, args, false, true);
 }
 
 static int jim_command_drplainscan(Jim_Interp *interp, int argc, Jim_Obj * const *args)
 {
-	return jim_command_scan(interp, argc, args, true);
+	return jim_command_scan(interp, argc, args, true, true);
+}
+
+static int jim_command_irplainscan(Jim_Interp *interp, int argc, Jim_Obj * const *args)
+{
+	return jim_command_scan(interp, argc, args, true, false);
 }
 
 static int jim_command_pathmove(Jim_Interp *interp, int argc, Jim_Obj * const *args)
@@ -300,7 +307,7 @@ static const struct command_registration jtag_command_handlers_to_move[] = {
 		.name = "drplainscan",
 		.mode = COMMAND_EXEC,
 		.jim_handler = jim_command_drplainscan,
-		.help = "Execute plain Data Register (DR) scan for one TAP.  "
+		.help = "Execute plain Data Register (DR) scan.  "
 			"Other TAPs must be in BYPASS mode. Unlike drscan, dummy bits for bypassed Taps are not added.",
 		.usage = "tap_name [num_bits value]* ['-endstate' state_name]",
 	},
@@ -318,6 +325,14 @@ static const struct command_registration jtag_command_handlers_to_move[] = {
 		.usage = "start_state state1 [state2 [state3 ...]]",
 		.help = "Move JTAG state machine from current state "
 			"(start_state) to state1, then state2, state3, etc.",
+	},
+	{
+		.name = "irplainscan",
+		.mode = COMMAND_EXEC,
+		.jim_handler = jim_command_irplainscan,
+		.help = "Execute plain Instruction Register (IR) scan.  "
+			"Unlike the irscan command, this command supports multiple value just like drscan and drplainscan. It will return the data from TDO",
+		.usage = "tap_name [num_bits value]* ['-endstate' state_name]",
 	},
 	COMMAND_REGISTRATION_DONE
 };
@@ -1218,6 +1233,23 @@ COMMAND_HANDLER(handle_verify_jtag_command)
 	return ERROR_OK;
 }
 
+COMMAND_HANDLER(handle_examine_chain_command)
+{
+	if (CMD_ARGC > 1)
+		return ERROR_COMMAND_SYNTAX_ERROR;
+
+	if (CMD_ARGC == 1) {
+		bool enable;
+		COMMAND_PARSE_ENABLE(CMD_ARGV[0], enable);
+		jtag_set_examine_chain(enable);
+	}
+
+	const char *status = jtag_will_examine_chain() ? "enabled" : "disabled";
+	command_print(CMD, "examine jtag chain is %s", status);
+
+	return ERROR_OK;
+}
+
 COMMAND_HANDLER(handle_tms_sequence_command)
 {
 	if (CMD_ARGC > 1)
@@ -1359,6 +1391,14 @@ static const struct command_registration jtag_command_handlers[] = {
 		.mode = COMMAND_ANY,
 		.help = "Display or assign flag controlling whether to "
 			"verify values captured during IR and DR scans.",
+		.usage = "['enable'|'disable']",
+	},
+	{
+		.name = "examine_chain",
+		.handler = handle_examine_chain_command,
+		.mode = COMMAND_ANY,
+		.help = "Display or assign flag controlling whether to "
+			"examine JTAG chain during initialization",
 		.usage = "['enable'|'disable']",
 	},
 	{
