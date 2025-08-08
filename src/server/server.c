@@ -37,6 +37,8 @@
 
 #include <signal.h>
 
+#include "jim.h"
+
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -63,6 +65,10 @@ static int polling_period = 100;
 
 /* address by name on which to listen for incoming TCP/IP connections */
 static char *bindto_name;
+
+/* count number of connections */
+static int connection_count;
+static int active_connection_count;
 
 static int add_connection(struct service *service, struct command_context *cmd_ctx)
 {
@@ -453,6 +459,7 @@ int server_loop(struct command_context *command_context)
 		/* monitor sockets for activity */
 		fd_max = 0;
 		FD_ZERO(&read_fds);
+		active_connection_count = 0;
 
 		/* add service and connection fds to read_fds */
 		for (service = services; service; service = service->next) {
@@ -468,6 +475,7 @@ int server_loop(struct command_context *command_context)
 				struct connection *c;
 
 				for (c = service->connections; c; c = c->next) {
+					active_connection_count += 1;
 					/* check for activity on the connection */
 					FD_SET(c->fd, &read_fds);
 					if (c->fd > fd_max)
@@ -546,6 +554,7 @@ int server_loop(struct command_context *command_context)
 			/* handle new connections on listeners */
 			if ((service->fd != -1)
 				&& (FD_ISSET(service->fd, &read_fds))) {
+				connection_count += 1;
 				if (service->max_connections != 0)
 					add_connection(service, command_context);
 				else {
@@ -801,6 +810,20 @@ COMMAND_HANDLER(handle_bindto_command)
 	return ERROR_OK;
 }
 
+static int jim_command_connection_count(Jim_Interp *interp, int argc, Jim_Obj * const *args)
+{
+	Jim_SetResult(interp, Jim_NewIntObj(interp, connection_count));
+
+	return JIM_OK;
+}
+
+static int jim_command_active_connection_count(Jim_Interp *interp, int argc, Jim_Obj * const *args)
+{
+	Jim_SetResult(interp, Jim_NewIntObj(interp, active_connection_count));
+
+	return JIM_OK;
+}
+
 static const struct command_registration server_command_handlers[] = {
 	{
 		.name = "shutdown",
@@ -823,6 +846,20 @@ static const struct command_registration server_command_handlers[] = {
 		.usage = "[name]",
 		.help = "Specify address by name on which to listen for "
 			"incoming TCP/IP connections",
+	},
+	{
+		.name = "connection_count",
+		.jim_handler = &jim_command_connection_count,
+		.mode = COMMAND_EXEC,
+		.usage = "",
+		.help = "return total number of stdin/stdout and TCP/IP connections",
+	},
+	{
+		.name = "active_connection_count",
+		.jim_handler = &jim_command_active_connection_count,
+		.mode = COMMAND_EXEC,
+		.usage = "",
+		.help = "return number of stdin/stdout and TCP/IP connections that are still ative",
 	},
 	COMMAND_REGISTRATION_DONE
 };
