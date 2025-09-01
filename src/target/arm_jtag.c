@@ -46,7 +46,7 @@ int arm_jtag_set_instr_inner(struct jtag_tap *tap,
 		/* FIX!!!! this is a kludge!!! arm926ejs.c should reimplement this arm_jtag_set_instr to
 		 * have special verification code.
 		 */
-		jtag_add_ir_scan_noverify(tap, &field, end_state);
+		jtag_add_ir_scan_noverify(tap, 1, &field, end_state, false);
 	}
 
 	return ERROR_OK;

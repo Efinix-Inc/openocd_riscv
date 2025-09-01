@@ -312,8 +312,12 @@ void jtag_add_ir_scan(struct jtag_tap *tap,
  * The same as jtag_add_ir_scan except no verification is performed out
  * the output values.
  */
-void jtag_add_ir_scan_noverify(struct jtag_tap *tap,
-		const struct scan_field *fields, tap_state_t state);
+void jtag_add_ir_scan_noverify(struct jtag_tap *tap, int in_num_fields,
+		const struct scan_field *fields, tap_state_t state, bool is_plain);
+
+void jtag_add_ir_plainscan(struct jtag_tap *active, int in_num_fields,
+		struct scan_field *in_fields, tap_state_t state, bool is_plain);
+
 /**
  * Scan out the bits in ir scan mode.
  *
