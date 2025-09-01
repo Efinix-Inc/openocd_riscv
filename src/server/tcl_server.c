@@ -23,6 +23,7 @@
 #include "tcl_server.h"
 #include <target/target.h>
 #include <helper/binarybuffer.h>
+#include <jtag/jtag.h>
 
 #define TCL_SERVER_VERSION		"TCL Server 0.1"
 #define TCL_LINE_INITIAL		(4*1024)
@@ -241,8 +242,11 @@ static int tcl_input(struct connection *connection)
 #undef ESTR
 		} else {
 			tclc->tc_line[tclc->tc_lineoffset-1] = '\0';
+			bool save_poll = jtag_poll_get_enabled();
+			jtag_poll_set_enabled(false);
 			command_run_line(connection->cmd_ctx, tclc->tc_line);
 			result = Jim_GetString(Jim_GetResult(interp), &reslen);
+			jtag_poll_set_enabled(save_poll);
 			retval = tcl_output(connection, result, reslen);
 			if (retval != ERROR_OK)
 				return retval;
