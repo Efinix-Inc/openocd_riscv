@@ -190,7 +190,10 @@ static int jim_command_scan(Jim_Interp *interp, int argc, Jim_Obj * const *args,
 		field_count++;
 	}
 
-	jtag_add_dr_scan_plainscan(tap, num_fields, fields, endstate, is_plain, is_drscan);
+	if (is_drscan)
+		jtag_add_dr_scan_plainscan(tap, num_fields, fields, endstate, is_plain);
+	else
+		jtag_add_ir_plainscan(tap, num_fields, fields, endstate, is_plain);
 
 	retval = jtag_execute_queue();
 	if (retval != ERROR_OK) {

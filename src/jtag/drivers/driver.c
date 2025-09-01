@@ -171,7 +171,7 @@ int interface_jtag_add_ir_scan(struct jtag_tap *active, int in_num_fields,
  *
  */
 int interface_jtag_add_dr_scan(struct jtag_tap *active, int in_num_fields,
-		const struct scan_field *in_fields, tap_state_t state, bool is_plain, bool is_drscan)
+		const struct scan_field *in_fields, tap_state_t state, bool is_plain)
 {
 	/* count devices in bypass */
 
@@ -193,7 +193,7 @@ int interface_jtag_add_dr_scan(struct jtag_tap *active, int in_num_fields,
 	cmd->type = JTAG_SCAN;
 	cmd->cmd.scan = scan;
 
-	scan->ir_scan = !is_drscan;
+	scan->ir_scan = false;
 	scan->num_fields = in_num_fields + bypass_devices;
 	scan->fields = out_fields;
 	scan->end_state = state;
