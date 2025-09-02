@@ -129,6 +129,8 @@ int interface_jtag_add_ir_scan(struct jtag_tap *active, int in_num_fields,
 				}
 				if (cont_one_count != tap->ir_length) {
 					tap->bypass = 0;
+					/* set to all zero or all one to trigger instruction re-transmission (if any) */
+					buf_set_ones(tap->cur_instr, tap->ir_length);
 					break;
 				}
 				cont_one_count = 0;
