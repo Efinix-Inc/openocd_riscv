@@ -312,8 +312,12 @@ void jtag_add_ir_scan(struct jtag_tap *tap,
  * The same as jtag_add_ir_scan except no verification is performed out
  * the output values.
  */
-void jtag_add_ir_scan_noverify(struct jtag_tap *tap,
-		const struct scan_field *fields, tap_state_t state);
+void jtag_add_ir_scan_noverify(struct jtag_tap *tap, int in_num_fields,
+		const struct scan_field *fields, tap_state_t state, bool is_plain);
+
+void jtag_add_ir_plainscan(struct jtag_tap *active, int in_num_fields,
+		struct scan_field *in_fields, tap_state_t state, bool is_plain);
+
 /**
  * Scan out the bits in ir scan mode.
  *
@@ -327,7 +331,7 @@ void jtag_add_plain_ir_scan(int num_bits, const uint8_t *out_bits, uint8_t *in_b
  * No dummy fields will be added or removed if is_plain is set to true
  */
 void jtag_add_dr_scan_plainscan(struct jtag_tap *tap, int num_fields,
-		const struct scan_field *fields, tap_state_t endstate, bool is_plain, bool is_drscan);
+		const struct scan_field *fields, tap_state_t endstate, bool is_plain);
 /**
  * Generate a DR SCAN using the fields passed to the function.
  * For connected TAPs, the function checks in_fields and uses fields

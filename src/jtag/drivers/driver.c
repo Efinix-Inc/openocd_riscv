@@ -59,14 +59,15 @@ static void jtag_callback_queue_reset(void)
  * see jtag_add_ir_scan()
  *
  */
-int interface_jtag_add_ir_scan(struct jtag_tap *active,
-		const struct scan_field *in_fields, tap_state_t state)
+int interface_jtag_add_ir_scan(struct jtag_tap *active, int in_num_fields,
+		const struct scan_field *in_fields, tap_state_t state, bool is_plain)
 {
 	size_t num_taps = jtag_tap_count_enabled();
+	int num_fields = is_plain ? in_num_fields : (int)num_taps;
 
 	struct jtag_command *cmd = cmd_queue_alloc(sizeof(struct jtag_command));
 	struct scan_command *scan = cmd_queue_alloc(sizeof(struct scan_command));
-	struct scan_field *out_fields = cmd_queue_alloc(num_taps  * sizeof(struct scan_field));
+	struct scan_field *out_fields = cmd_queue_alloc(num_fields  * sizeof(struct scan_field));
 
 	jtag_queue_command(cmd);
 
@@ -74,7 +75,7 @@ int interface_jtag_add_ir_scan(struct jtag_tap *active,
 	cmd->cmd.scan = scan;
 
 	scan->ir_scan = true;
-	scan->num_fields = num_taps;	/* one field per device */
+	scan->num_fields = num_fields;	/* one field per device */
 	scan->fields = out_fields;
 	scan->end_state = state;
 
@@ -82,32 +83,88 @@ int interface_jtag_add_ir_scan(struct jtag_tap *active,
 
 	/* loop over all enabled TAPs */
 
-	for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL); tap; tap = jtag_tap_next_enabled(tap)) {
-		/* search the input field list for fields for the current TAP */
+	if (is_plain) {
+		struct scan_field *start_field = field;
+		int cmd_ir_count = 0;
+		int tap_ir_count = 0;
 
-		if (tap == active) {
-			/* if TAP is listed in input fields, copy the value */
-			tap->bypass = 0;
-
-			jtag_scan_field_clone(field, in_fields);
-		} else {
-			/* if a TAP isn't listed in input fields, set it to BYPASS */
-
-			tap->bypass = 1;
-
-			field->num_bits = tap->ir_length;
-			field->out_value = buf_set_ones(cmd_queue_alloc(DIV_ROUND_UP(tap->ir_length, 8)), tap->ir_length);
-			field->in_value = NULL; /* do not collect input for tap's in bypass */
+		for (int j = 0; j < in_num_fields; j++) {
+			jtag_scan_field_clone(field, in_fields + j);
+			cmd_ir_count += in_fields->num_bits;
+			field++;
 		}
 
-		/* update device information */
-		buf_cpy(field->out_value, tap->cur_instr, tap->ir_length);
+		for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL); tap; tap = jtag_tap_next_enabled(tap)) {
+			tap_ir_count += tap->ir_length;
+			tap->bypass = 1;
+		}
 
-		field++;
+		/* find active tap */
+		if (cmd_ir_count == tap_ir_count) {
+			uint8_t *bseq = malloc(cmd_ir_count * sizeof(uint8_t));
+			int index = 0;
+			int cont_one_count = 0;
+			/* convert output IR values into an array of bits */
+			for (int j = 0; j < in_num_fields; j++) {
+				int k = 0;
+				for (k = 0 ; k < in_fields[j].num_bits / 8 ; k++) {
+					for (int bit = 0 ; bit < 8 ; bit++) {
+						bseq[index] = (in_fields[j].out_value[k] >> bit) & 0x1;
+						++index;
+					}
+				}
+				for (int bit = 0; bit < in_fields[j].num_bits % 8 ; bit++) {
+					bseq[index] = (in_fields[j].out_value[k] >> bit) & 0x1;
+					++index;
+				}
+			}
+
+			/* set the first tap that doesn't have all ones IR to be active tap  */
+			index = 0;
+			for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL); tap; tap = jtag_tap_next_enabled(tap)) {
+				for (int j = 0 ; j < tap->ir_length ; j++) {
+					if (bseq[index])
+						++cont_one_count;
+					++index;
+				}
+				if (cont_one_count != tap->ir_length) {
+					tap->bypass = 0;
+					/* set to all zero or all one to trigger instruction re-transmission (if any) */
+					buf_set_ones(tap->cur_instr, tap->ir_length);
+					break;
+				}
+				cont_one_count = 0;
+			}
+			free(bseq);
+		}
+
+		assert(field > start_field);
+	} else {
+		for (struct jtag_tap *tap = jtag_tap_next_enabled(NULL); tap; tap = jtag_tap_next_enabled(tap)) {
+			/* search the input field list for fields for the current TAP */
+			if (tap == active) {
+				/* if TAP is listed in input fields, copy the value */
+				tap->bypass = 0;
+
+				jtag_scan_field_clone(field, in_fields);
+			} else {
+				/* if a TAP isn't listed in input fields, set it to BYPASS */
+
+				tap->bypass = 1;
+
+				field->num_bits = tap->ir_length;
+				field->out_value = buf_set_ones(cmd_queue_alloc(DIV_ROUND_UP(tap->ir_length, 8)), tap->ir_length);
+				field->in_value = NULL; /* do not collect input for tap's in bypass */
+			}
+
+			/* update device information */
+			buf_cpy(field->out_value, tap->cur_instr, tap->ir_length);
+
+			field++;
+		}
 	}
 	/* paranoia: jtag_tap_count_enabled() and jtag_tap_next_enabled() not in sync */
-	assert(field == out_fields + num_taps);
-
+	assert(field == out_fields + num_fields);
 	return ERROR_OK;
 }
 
@@ -116,7 +173,7 @@ int interface_jtag_add_ir_scan(struct jtag_tap *active,
  *
  */
 int interface_jtag_add_dr_scan(struct jtag_tap *active, int in_num_fields,
-		const struct scan_field *in_fields, tap_state_t state, bool is_plain, bool is_drscan)
+		const struct scan_field *in_fields, tap_state_t state, bool is_plain)
 {
 	/* count devices in bypass */
 
@@ -138,7 +195,7 @@ int interface_jtag_add_dr_scan(struct jtag_tap *active, int in_num_fields,
 	cmd->type = JTAG_SCAN;
 	cmd->cmd.scan = scan;
 
-	scan->ir_scan = !is_drscan;
+	scan->ir_scan = false;
 	scan->num_fields = in_num_fields + bypass_devices;
 	scan->fields = out_fields;
 	scan->end_state = state;

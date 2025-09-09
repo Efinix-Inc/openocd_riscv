@@ -348,12 +348,12 @@ static void jtag_prelude(tap_state_t state)
 	cmd_queue_cur_state = state;
 }
 
-void jtag_add_ir_scan_noverify(struct jtag_tap *active, const struct scan_field *in_fields,
-	tap_state_t state)
+void jtag_add_ir_scan_noverify(struct jtag_tap *active, int in_num_fields,
+	const struct scan_field *in_fields, tap_state_t state, bool is_plain)
 {
 	jtag_prelude(state);
 
-	int retval = interface_jtag_add_ir_scan(active, in_fields, state);
+	int retval = interface_jtag_add_ir_scan(active, in_num_fields, in_fields, state, is_plain);
 	jtag_set_error(retval);
 }
 
@@ -362,7 +362,7 @@ static void jtag_add_ir_scan_noverify_callback(struct jtag_tap *active,
 	const struct scan_field *in_fields,
 	tap_state_t state)
 {
-	jtag_add_ir_scan_noverify(active, in_fields, state);
+	jtag_add_ir_scan_noverify(active, 1, in_fields, state, false);
 }
 
 /* If fields->in_value is filled out, then the captured IR value will be checked */
@@ -381,7 +381,16 @@ void jtag_add_ir_scan(struct jtag_tap *active, struct scan_field *in_fields, tap
 		jtag_add_scan_check(active, jtag_add_ir_scan_noverify_callback, 1, in_fields,
 			state);
 	} else
-		jtag_add_ir_scan_noverify(active, in_fields, state);
+		jtag_add_ir_scan_noverify(active, 1, in_fields, state, false);
+}
+
+void jtag_add_ir_plainscan(struct jtag_tap *active, int in_num_fields,
+	struct scan_field *in_fields, tap_state_t state, bool is_plain)
+{
+	/* TODO: support IR verify */
+	assert(state != TAP_RESET);
+
+	jtag_add_ir_scan_noverify(active, in_num_fields, in_fields, state, is_plain);
 }
 
 void jtag_add_plain_ir_scan(int num_bits, const uint8_t *out_bits, uint8_t *in_bits,
@@ -446,14 +455,14 @@ void jtag_add_dr_scan_check(struct jtag_tap *active,
 void jtag_add_dr_scan_plainscan(struct jtag_tap *active,
 	int in_num_fields,
 	const struct scan_field *in_fields,
-	tap_state_t state, bool is_plain, bool is_drscan)
+	tap_state_t state, bool is_plain)
 {
 	assert(state != TAP_RESET);
 
 	jtag_prelude(state);
 
 	int retval;
-	retval = interface_jtag_add_dr_scan(active, in_num_fields, in_fields, state, is_plain, is_drscan);
+	retval = interface_jtag_add_dr_scan(active, in_num_fields, in_fields, state, is_plain);
 	jtag_set_error(retval);
 }
 
@@ -462,7 +471,7 @@ void jtag_add_dr_scan(struct jtag_tap *active,
 	const struct scan_field *in_fields,
 	tap_state_t state)
 {
-	jtag_add_dr_scan_plainscan(active, in_num_fields, in_fields, state, false, true);
+	jtag_add_dr_scan_plainscan(active, in_num_fields, in_fields, state, false);
 }
 
 void jtag_add_plain_dr_scan(int num_bits, const uint8_t *out_bits, uint8_t *in_bits,
