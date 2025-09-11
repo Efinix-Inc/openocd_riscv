@@ -151,6 +151,10 @@ static int gdb_report_register_access_error;
 /* enabled by default */
 static int gdb_use_target_description = 1;
 
+/* set if forwarding log to gdb */
+/* enabled by default */
+static int gdb_forward_log = 1;
+
 /* current processing free-run type, used by file-I/O */
 static char gdb_running_type;
 
@@ -1107,7 +1111,8 @@ static int gdb_new_connection(struct connection *connection)
 	 * register callback to be informed about target events */
 	target_register_event_callback(gdb_target_callback_event_handler, connection);
 
-	log_add_callback(gdb_log_callback, connection);
+	if (gdb_forward_log)
+		log_add_callback(gdb_log_callback, connection);
 
 	return ERROR_OK;
 }
@@ -1122,7 +1127,8 @@ static int gdb_connection_closed(struct connection *connection)
 	/* we're done forwarding messages. Tear down callback before
 	 * cleaning up connection.
 	 */
-	log_remove_callback(gdb_log_callback, connection);
+	if (gdb_forward_log)
+		log_remove_callback(gdb_log_callback, connection);
 
 	gdb_actual_connections--;
 	LOG_DEBUG("GDB Close, Target: %s, state: %s, gdb_actual_connections=%d",
@@ -3989,6 +3995,15 @@ COMMAND_HANDLER(handle_gdb_target_description_command)
 	return ERROR_OK;
 }
 
+COMMAND_HANDLER(handle_gdb_log_command)
+{
+	if (CMD_ARGC != 1)
+		return ERROR_COMMAND_SYNTAX_ERROR;
+
+	COMMAND_PARSE_ENABLE(CMD_ARGV[0], gdb_forward_log);
+	return ERROR_OK;
+}
+
 COMMAND_HANDLER(handle_gdb_save_tdesc_command)
 {
 	char *tdesc;
@@ -4105,6 +4120,13 @@ static const struct command_registration gdb_command_handlers[] = {
 		.mode = COMMAND_EXEC,
 		.help = "Save the target description file",
 		.usage = "",
+	},
+	{
+		.name = "gdb_log",
+		.handler = handle_gdb_log_command,
+		.mode = COMMAND_CONFIG,
+		.help = "enable or disable forwarding log to GDB",
+		.usage = "('enable'|'disable')"
 	},
 	COMMAND_REGISTRATION_DONE
 };
