@@ -748,7 +748,8 @@ static int ftdi_initialize(void)
 
 	for (int i = 0; ftdi_vid[i] || ftdi_pid[i]; i++) {
 		mpsse_ctx = mpsse_open(&ftdi_vid[i], &ftdi_pid[i], ftdi_device_desc,
-				adapter_get_required_serial(), adapter_usb_get_location(), ftdi_channel);
+				adapter_get_required_serial(), adapter_usb_get_location(), ftdi_channel,
+				adapter_usb_get_bus_number() , adapter_usb_get_device_address());
 		if (mpsse_ctx)
 			break;
 	}
