@@ -41,7 +41,7 @@ struct mpsse_ctx;
 
 /* Device handling */
 struct mpsse_ctx *mpsse_open(const uint16_t *vid, const uint16_t *pid, const char *description,
-	const char *serial, const char *location, int channel);
+	const char *serial, const char *location, int channel, int bus_number, int device_address);
 void mpsse_close(struct mpsse_ctx *ctx);
 bool mpsse_is_high_speed(struct mpsse_ctx *ctx);
 

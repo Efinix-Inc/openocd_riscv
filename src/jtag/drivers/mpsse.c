@@ -160,7 +160,7 @@ static bool device_location_equal(struct libusb_device *device, const char *loca
  * the already opened handle. ctx->interface must be set to the desired interface (channel) number
  * prior to calling this function. */
 static bool open_matching_device(struct mpsse_ctx *ctx, const uint16_t *vid, const uint16_t *pid,
-	const char *product, const char *serial, const char *location)
+	const char *product, const char *serial, const char *location, int bus_number, int device_address)
 {
 	struct libusb_device **list;
 	struct libusb_device_descriptor desc;
@@ -203,6 +203,16 @@ static bool open_matching_device(struct mpsse_ctx *ctx, const uint16_t *vid, con
 		}
 
 		if (serial && !string_descriptor_equal(ctx->usb_dev, desc.iSerialNumber, serial)) {
+			libusb_close(ctx->usb_dev);
+			continue;
+		}
+
+		if (bus_number >= 0 && bus_number != libusb_get_bus_number(device)) {
+			libusb_close(ctx->usb_dev);
+			continue;
+		}
+
+		if (device_address >= 0 && device_address != libusb_get_device_address(device)) {
 			libusb_close(ctx->usb_dev);
 			continue;
 		}
@@ -319,7 +329,7 @@ error:
 }
 
 struct mpsse_ctx *mpsse_open(const uint16_t *vid, const uint16_t *pid, const char *description,
-	const char *serial, const char *location, int channel)
+	const char *serial, const char *location, int channel, int bus_number, int device_address)
 {
 	struct mpsse_ctx *ctx = calloc(1, sizeof(*ctx));
 	int err;
@@ -354,17 +364,21 @@ struct mpsse_ctx *mpsse_open(const uint16_t *vid, const uint16_t *pid, const cha
 		goto error;
 	}
 
-	if (!open_matching_device(ctx, vid, pid, description, serial, location)) {
+	if (!open_matching_device(ctx, vid, pid, description, serial, location, bus_number, device_address)) {
 		/* Four hex digits plus terminating zero each */
 		char vidstr[5];
 		char pidstr[5];
+		char busstr[4];
+		char addressstr[4];
 		LOG_ERROR("unable to open ftdi device with vid %s, pid %s, description '%s', "
-				"serial '%s' at bus location '%s'",
+				"serial '%s' at bus location '%s' or bus:address %s:%s",
 				vid ? sprintf(vidstr, "%04x", *vid), vidstr : "*",
 				pid ? sprintf(pidstr, "%04x", *pid), pidstr : "*",
 				description ? description : "*",
 				serial ? serial : "*",
-				location ? location : "*");
+				location ? location : "*",
+				bus_number >= 0 ? sprintf(busstr, "%03u", (uint8_t)bus_number), busstr : "*",
+				device_address >= 0 ? sprintf(busstr, "%03u", (uint8_t)device_address), addressstr : "*");
 		ctx->usb_dev = 0;
 		goto error;
 	}

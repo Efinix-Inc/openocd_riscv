@@ -55,6 +55,17 @@ int adapter_config_rclk(unsigned int fallback_speed_khz);
 /** Retrieves the clock speed of the adapter in kHz. */
 unsigned int adapter_get_speed_khz(void);
 
+/** Retrieves bus number of the device. Return -1 if not initialized
+ *  Bus number can be 0 on Windows.
+ */
+int adapter_usb_get_bus_number(void);
+
+/** Retrieves device address of the device. Return -1 if not initialized */
+int adapter_usb_get_device_address(void);
+
+/** @returns true if bus and device address has been initialized */
+bool is_adapter_bus_address_initialized(void);
+
 /** Retrieves the serial number set with command 'adapter serial' */
 const char *adapter_get_required_serial(void);
 

@@ -42,6 +42,9 @@ static struct {
 	enum adapter_clk_mode clock_mode;
 	int speed_khz;
 	int rclk_fallback_speed_khz;
+	int bus_number;
+	int device_address;
+	bool bus_address_initialized;
 } adapter_config;
 
 bool is_adapter_initialized(void)
@@ -250,6 +253,27 @@ static void adapter_usb_set_location(const char *location)
 const char *adapter_usb_get_location(void)
 {
 	return adapter_config.usb_location;
+}
+
+int adapter_usb_get_bus_number(void)
+{
+	if (adapter_config.bus_address_initialized)
+		return adapter_config.bus_number;
+	else
+		return -1;
+}
+
+int adapter_usb_get_device_address(void)
+{
+	if (adapter_config.bus_address_initialized)
+		return adapter_config.device_address;
+	else
+		return -1;
+}
+
+bool is_adapter_bus_address_initialized(void)
+{
+	return adapter_config.bus_address_initialized;
 }
 
 bool adapter_usb_location_equal(uint8_t dev_bus, uint8_t *port_path, size_t path_len)
@@ -770,6 +794,47 @@ COMMAND_HANDLER(handle_usb_location_command)
 }
 #endif /* HAVE_LIBUSB_GET_PORT_NUMBERS */
 
+COMMAND_HANDLER(handle_usb_bus_device_address_command)
+{
+	if (CMD_ARGC != 1) {
+		LOG_ERROR("too many arguments for the bus_address command");
+		return ERROR_COMMAND_SYNTAX_ERROR;
+	}
+	unsigned int bus;
+	unsigned int device;
+	char *argstr;
+	char *loc = strdup(CMD_ARGV[0]);
+	if (!loc) {
+		LOG_ERROR("string duplication failed\n");
+		return ERROR_COMMAND_ARGUMENT_OVERFLOW;
+	}
+	char *p_loc = loc;
+
+	argstr = strtok_r(p_loc, "-", &p_loc);
+	if (!argstr) {
+		LOG_ERROR("no '-' in usb bus_address\n");
+		free(loc);
+		return ERROR_COMMAND_SYNTAX_ERROR;
+	}
+	COMMAND_PARSE_NUMBER(uint, argstr, bus);
+	argstr = strtok_r(p_loc, "-", &p_loc);
+	if (!argstr) {
+		LOG_ERROR("device address is not specified in bus_address\n");
+		free(loc);
+		return ERROR_COMMAND_SYNTAX_ERROR;
+	}
+	COMMAND_PARSE_NUMBER(uint, argstr, device);
+
+	adapter_config.bus_number = bus;
+	adapter_config.device_address = device;
+	adapter_config.bus_address_initialized = true;
+
+	command_print(CMD, "adapter bus number: %d, device address: %d",
+		adapter_usb_get_bus_number(), adapter_usb_get_device_address());
+	free(loc);
+	return ERROR_OK;
+}
+
 static const struct command_registration adapter_usb_command_handlers[] = {
 #ifdef HAVE_LIBUSB_GET_PORT_NUMBERS
 	{
@@ -780,6 +845,13 @@ static const struct command_registration adapter_usb_command_handlers[] = {
 		.usage = "[<bus>-port[.port]...]",
 	},
 #endif /* HAVE_LIBUSB_GET_PORT_NUMBERS */
+	{
+		.name = "bus_address",
+		.handler = &handle_usb_bus_device_address_command,
+		.mode = COMMAND_CONFIG,
+		.help = "set the bus and device address of the USB device",
+		.usage = "[bus]-[device_address]",
+	},
 	COMMAND_REGISTRATION_DONE
 };
 
