@@ -1868,7 +1868,7 @@ static unsigned riscv013_data_bits(struct target *target)
 
 		if (method == RISCV_MEM_ACCESS_PROGBUF) {
 			if (has_sufficient_progbuf(target, 3))
-				return riscv_xlen(target);
+				return 32;
 		} else if (method == RISCV_MEM_ACCESS_SYSBUS) {
 			if (get_field(info->sbcs, DM_SBCS_SBACCESS128))
 				return 128;
