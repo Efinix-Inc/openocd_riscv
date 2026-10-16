@@ -3554,8 +3554,11 @@ static int read_memory(struct target *target, target_addr_t address,
 	if (count == 0)
 		return ERROR_OK;
 	
-	/* Bypass memory read from 0x0 to 0x1000 for standard debug interface*/
-	if (address < 0x1000){
+	/* Bypass memory read below riscv_read_guard_size for standard debug interface */
+	if (address < riscv_read_guard_size) {
+		LOG_TARGET_DEBUG(target, "Memory read at 0x%" TARGET_PRIxADDR
+				" rejected by read guard (< 0x%" TARGET_PRIxADDR ")",
+				address, riscv_read_guard_size);
 		return ERROR_FAIL;
 	}
 

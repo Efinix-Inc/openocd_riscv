@@ -133,6 +133,10 @@ int riscv_command_timeout_sec = DEFAULT_COMMAND_TIMEOUT_SEC;
 int riscv_reset_timeout_sec = DEFAULT_RESET_TIMEOUT_SEC;
 
 bool riscv_enable_virt2phys = true;
+
+/* Memory reads below this address are rejected (0 disables). Settable via RISC-V Target commands. */
+target_addr_t riscv_read_guard_size = 0x1000;
+
 bool riscv_ebreakm = true;
 bool riscv_ebreaks = true;
 bool riscv_ebreaku = true;
@@ -2971,6 +2975,16 @@ COMMAND_HANDLER(riscv_set_enable_virt2phys)
 	return ERROR_OK;
 }
 
+COMMAND_HANDLER(riscv_set_read_guard)
+{
+	if (CMD_ARGC != 1) {
+		LOG_ERROR("Command takes exactly 1 parameter");
+		return ERROR_COMMAND_SYNTAX_ERROR;
+	}
+	COMMAND_PARSE_ADDRESS(CMD_ARGV[0], riscv_read_guard_size);
+	return ERROR_OK;
+}
+
 COMMAND_HANDLER(riscv_set_ebreakm)
 {
 	if (CMD_ARGC != 1) {
@@ -3393,6 +3407,14 @@ static const struct command_registration riscv_exec_command_handlers[] = {
 		.usage = "on|off",
 		.help = "When on (default), enable translation from virtual address to "
 			"physical address."
+	},
+	{
+		.name = "set_read_guard",
+		.handler = riscv_set_read_guard,
+		.mode = COMMAND_ANY,
+		.usage = "size",
+		.help = "Reject memory reads from address 0 up to size (default 0x1000). "
+			"Set to 0 for SoCs that have memory mapped at address 0."
 	},
 	{
 		.name = "set_ebreakm",

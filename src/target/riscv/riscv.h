@@ -267,6 +267,7 @@ extern int riscv_command_timeout_sec;
 extern int riscv_reset_timeout_sec;
 
 extern bool riscv_enable_virtual;
+extern target_addr_t riscv_read_guard_size;
 extern bool riscv_ebreakm;
 extern bool riscv_ebreaks;
 extern bool riscv_ebreaku;
